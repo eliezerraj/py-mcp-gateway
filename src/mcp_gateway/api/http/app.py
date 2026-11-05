@@ -23,7 +23,8 @@ setup_logger(
 )
 
 # Setup tracing for the application
-setup_tracer(settings.APP_NAME, settings.OTEL_EXPORTER_OTLP_ENDPOINT)
+setup_tracer(settings.APP_NAME, 
+             settings.OTEL_EXPORTER_OTLP_ENDPOINT)
 
 # Initialize logger and tracer for the application
 logger = logging.getLogger(__name__)
@@ -40,7 +41,9 @@ async def lifespan(app: FastAPI):
     await asyncio.sleep(1)
     logger.info("**** Shutdown complete.")
 
+#---------------------------------
 # Create and configure the FastAPI application instance
+#---------------------------------
 def create_app() -> FastAPI:
     logger.info("Initializing server resources")
 
@@ -56,4 +59,5 @@ def create_app() -> FastAPI:
     
     app.add_middleware(PrometheusMiddleware)
     app.add_middleware(RequestContextMiddleware)  # Assuming you have an AuthMiddleware defined and imported at the top
+    
     return app

@@ -13,7 +13,6 @@ app = create_app()
 
 # Server entrypoint execution handler
 def run():
-    
     logger.info(f"Starting METRICS SERVER: {settings.METRICS_HOST}:{settings.METRICS_PORT}")
     start_http_server(port=int(settings.METRICS_PORT), addr=settings.METRICS_HOST)
     

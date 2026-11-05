@@ -51,7 +51,6 @@ def get_registered_services() -> ServiceResponse:
         
         message = f"Service {result.name} added successfully"
         
-
         return ServiceResponse(message=message, service=result)
 
 @router.get(
