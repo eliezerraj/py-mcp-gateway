@@ -1,6 +1,7 @@
 from typing import Optional
 
 class AppError(Exception):
+    
     def __init__(self, 
                  message: str,
                  error: Optional[str] = None,

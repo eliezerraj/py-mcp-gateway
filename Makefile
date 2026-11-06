@@ -12,6 +12,15 @@ export INVENTORY_URL=http://localhost:7000
 export METRICS_HOST=127.0.0.1
 export METRICS_PORT=8499
 
+export DB_HOST=127.0.0.1
+export DB_PORT=5432
+export DB_NAME=postgres
+export DB_USER=postgres
+export DB_PASS=postgres
+export DB_SCHEMA=public
+export DB_MAX_CONNECTION=10
+export DB_SSLMODE=disable
+
 export AUTHORIZATION_DRY_RUN=True
 export AUTHORIZATION_JWKS_URL=http://localhost:7100/v1/.well-known/jwks.json
 export AUTHORIZATION_ISSUER=go-authorizer-v2

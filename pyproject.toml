@@ -10,6 +10,7 @@ dependencies = [
     "fastapi",
     "uvicorn",
     "pydantic",
+    "asyncpg",
     "cedarpy",
     "opentelemetry-sdk",
     "opentelemetry-api",

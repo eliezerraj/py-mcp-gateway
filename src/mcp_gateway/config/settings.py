@@ -9,6 +9,15 @@ class Settings:
         self.PORT = os.getenv("PORT")
         self.SESSION_TIMEOUT = int(os.getenv("SESSION_TIMEOUT"))
      
+        self.DB_HOST = os.getenv("DB_HOST")
+        self.DB_PORT = os.getenv("DB_PORT")
+        self.DB_NAME = os.getenv("DB_NAME")
+        self.DB_USER = os.getenv("DB_USER")
+        self.DB_PASS = os.getenv("DB_PASS")
+        self.DB_SCHEMA = os.getenv("DB_SCHEMA")
+        self.DB_MAX_CONNECTION = os.getenv("DB_MAX_CONNECTION")
+        self.DB_SSLMODE = os.getenv("DB_SSLMODE")     
+     
         self.AUTHORIZATION_DRY_RUN = os.getenv("AUTHORIZATION_DRY_RUN", "true").lower() == "true"
         self.AUTHORIZATION_JWKS_URL = os.getenv("AUTHORIZATION_JWKS_URL")
         self.AUTHORIZATION_ISSUER = os.getenv("AUTHORIZATION_ISSUER")

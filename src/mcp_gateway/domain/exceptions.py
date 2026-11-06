@@ -13,3 +13,12 @@ class MissingTokenError(AppError):
 
 class ForbiddenError(AppError):
     pass
+
+class McpServerAlreadyExistsError(Exception):
+    pass
+
+class McpServerNotFoundError(Exception):
+    pass
+
+class RepositoryError(Exception):
+    pass
