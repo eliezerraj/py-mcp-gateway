@@ -1,5 +1,4 @@
 import logging
-import asyncio
 from contextlib import asynccontextmanager
 from urllib.parse import quote_plus
 from mcp_gateway.api.http.middleware.middleware_auth import RequestContextMiddleware
@@ -39,21 +38,30 @@ tracer = trace.get_tracer(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("**** Starting up the application...")
+    
     logger.info(f"**** Metrics server at {settings.METRICS_HOST}:{settings.METRICS_PORT}")
     logger.info(f"**** HTTP server at {settings.HOST}:{settings.PORT}")
     
-    user = quote_plus(settings.DB_USER)
-    password = quote_plus(settings.DB_PASS)
-    dsn = f"postgresql://{user}:{password}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
-    if settings.DB_SSLMODE:
-        dsn = f"{dsn}?sslmode={quote_plus(settings.DB_SSLMODE)}"
-    app.state.container = await create_container(
-        dsn=dsn,
-        min_pool_size=1,
-        max_pool_size=int(settings.DB_MAX_CONNECTION or 10),
-    )
-
-    logger.info("**** Application startup complete.")
+    logger.info("**** Connecting to the database...")
+    
+    try:
+        user = quote_plus(settings.DB_USER)
+        password = quote_plus(settings.DB_PASS)
+        
+        dsn = f"postgresql://{user}:{password}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
+        
+        if settings.DB_SSLMODE:
+            dsn = f"{dsn}?sslmode={quote_plus(settings.DB_SSLMODE)}"
+        app.state.container = await create_container(
+            dsn=dsn,
+            min_pool_size=1,
+            max_pool_size=int(settings.DB_MAX_CONNECTION or 10),
+        )
+        
+        logger.info("**** Application COMPLETED SUCCESSFULLY INITIALIZED.")
+    except Exception as e:
+        logger.error(f"**** Failed to connect to the database: {e}")
+        raise
 
     try:
         yield

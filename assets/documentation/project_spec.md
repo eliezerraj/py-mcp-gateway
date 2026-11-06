@@ -52,7 +52,7 @@ database:
   schema: |
     CREATE TABLE mcp_server_registry (
         server_id VARCHAR(100) PRIMARY KEY,
-        endpoint_url TEXT NOT NULL,
+        endpoint TEXT NOT NULL,
         status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
 
         document JSONB NOT NULL,
@@ -85,7 +85,7 @@ repository_contract:
       behavior:
         - Insert a new registry record.
         - Save the complete service document as JSONB.
-        - Copy service.endpoint.url into endpoint_url.
+        - Copy service.endpoint.url into endpoint.
         - Use PostgreSQL RETURNING to retrieve the inserted record.
         - Convert the database row into a domain model.
         - Raise McpServerAlreadyExistsError when server_id already exists.
@@ -122,7 +122,7 @@ repository_contract:
             service: McpServer
         ) -> McpServer
       behavior:
-        - Update endpoint_url.
+        - Update endpoint.
         - Update status.
         - Update document.
         - Update discovered_at when applicable.
@@ -216,7 +216,7 @@ domain_mapping:
 
   rules:
     - serverId maps to server_id.
-    - endpoint.url maps to endpoint_url.
+    - endpoint.url maps to endpoint.
     - status maps to status.
     - The complete service payload maps to document.
     - Database timestamps must be timezone-aware.

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
-from enum import Enum
-from typing import Any, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -20,7 +18,7 @@ class ServiceDiscovery(BaseModel):
     
 class Service(BaseModel):
     server_id: str
-    display_name: str
+    name: str
     description: str
     endpoint: Optional[ServiceEndpoint]
     authentication: Optional[ServiceAuthentication]

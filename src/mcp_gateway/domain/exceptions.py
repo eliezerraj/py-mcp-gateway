@@ -1,5 +1,3 @@
-from typing import Optional
-
 from src.mcp_gateway.domain.external.error_response import AppError
 
 class InvalidAccessTokenError(AppError):

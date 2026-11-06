@@ -1,6 +1,6 @@
 import logging
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, status, Request
 
 from mcp_gateway.domain.external.model import HealthResponse, ServiceRequest, ServiceResponse
 
@@ -44,18 +44,20 @@ def get_health() -> HealthResponse:
 @router.post(
     "/v1/services",
     response_model=ServiceResponse,
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_201_CREATED,
     summary="Post registered services",
 )
-def get_registered_services(payload: ServiceRequest) -> ServiceResponse:
+async def get_registered_services(payload: ServiceRequest, request: Request) -> ServiceResponse:
+    logger.info("Executing get_registered_services endpoint : payload=%s", payload)
     with tracer.start_as_current_span("router.get_registered_service") as span:
         try:
-            use_case = RegisteredServicesUseCase()
-            result = use_case.add_registered_service(payload)
-            message = f"Service {result.display_name} added successfully"
+            repo = request.app.state.container.mcp_server_repository
+            use_case = RegisteredServicesUseCase(repo)
+            
+            result = await use_case.add_registered_service(payload)
+            message = f"Service {result.name} added successfully"
 
             return ServiceResponse(message=message, service=result)
-
         except Exception as e:
             span.record_exception(e)
             span.set_status(Status(StatusCode.ERROR, str(e)))
@@ -75,16 +77,17 @@ def get_registered_services(payload: ServiceRequest) -> ServiceResponse:
     status_code=status.HTTP_200_OK,
     summary="Get registered services",
 )
-def get_registered_service() -> ServiceResponse:
+async def get_registered_service(payload: ServiceRequest, request: Request) -> ServiceResponse:
+    logger.info("Executing get_registered_service endpoint : payload=%s", payload)
     with tracer.start_as_current_span("router.get_registered_service") as span:
         try:
-            use_case = RegisteredServicesUseCase()
-            result = use_case.get_registered_service()
-
-            message = f"Service {result.display_name} retrieved successfully"
+            repo = request.app.state.container.mcp_server_repository
+            use_case = RegisteredServicesUseCase(repo)
+            
+            result = await use_case.get_registered_service(payload)
+            message = f"Service {result.name} retrieved successfully"
 
             return ServiceResponse(message=message, service=result)
-
         except Exception as e:
             span.record_exception(e)
             span.set_status(Status(StatusCode.ERROR, str(e)))

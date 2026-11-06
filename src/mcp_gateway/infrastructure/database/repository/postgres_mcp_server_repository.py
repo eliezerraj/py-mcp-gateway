@@ -1,8 +1,12 @@
 from __future__ import annotations
 
-from datetime import timezone
-
+import logging
+import json
+from datetime import datetime, timezone
+import json
 import asyncpg
+
+from datetime import timezone
 
 from mcp_gateway.domain.exceptions import (
     McpServerAlreadyExistsError,
@@ -12,53 +16,79 @@ from mcp_gateway.domain.exceptions import (
 from mcp_gateway.domain.model.service import Service
 from mcp_gateway.domain.repository.mcp_server_repository import McpServerRepository
 
+from opentelemetry import trace
+#---------------------------------
+# Configure logging
+#---------------------------------
+tracer = trace.get_tracer(__name__)
+logger = logging.getLogger(__name__)
 
 class PostgresMcpServerRepository(McpServerRepository):
     def __init__(self, pool: asyncpg.Pool):
         self._pool = pool
 
     async def create(self, service: Service) -> Service:
-        server_id = self._resolve_server_id(service)
-        endpoint_url = self._resolve_endpoint_url(service)
-
-        try:
-            async with self._pool.acquire() as connection:
-                row = await connection.fetchrow(
-                    """
-                    INSERT INTO mcp_server_registry (
+        logger.info(f"================================= Executing create registered service: {service}")
+        with tracer.start_as_current_span("usecase.create_registered_service") as span:
+            
+            server_id = self._resolve_server_id(service)
+            endpoint = self._resolve_endpoint(service)
+            status_value = service.status.value if hasattr(service.status, "value") else service.status
+            document = self._service_to_document(service)
+            document_json = json.dumps(document)
+            now = datetime.now(timezone.utc)
+            
+            print("-----------------------")
+            print(f"server_id: {server_id}")
+            print(f"endpoint: {endpoint}")
+            print(f"status_value: {status_value}")
+            print(f"document: {document}")
+            print("-----------------------")
+            
+            try:
+                async with self._pool.acquire() as connection:
+                    row = await connection.fetchrow(
+                        """
+                        INSERT INTO mcp_server_registry (
+                            server_id,
+                            endpoint,
+                            status,
+                            document,
+                            discovered_at,
+                            content_hash
+                        )
+                        VALUES ($1, $2, $3, $4::jsonb, $5, $6)
+                        RETURNING
+                            server_id,
+                            endpoint,
+                            status,
+                            document,
+                            discovered_at,
+                            content_hash,
+                            created_at,
+                            updated_at
+                        """,
                         server_id,
-                        endpoint_url,
-                        status,
-                        document,
-                        discovered_at,
-                        content_hash
+                        endpoint,
+                        status_value,
+                        document_json,
+                        now,
+                        None,
                     )
-                    VALUES ($1, $2, $3, $4, $5, $6)
-                    RETURNING
-                        server_id,
-                        endpoint_url,
-                        status,
-                        document,
-                        discovered_at,
-                        content_hash,
-                        created_at,
-                        updated_at
-                    """,
-                    server_id,
-                    endpoint_url,
-                    service.status.value,
-                    service.document,
-                    service.discovered_at,
-                    service.content_hash,
+            except asyncpg.UniqueViolationError as exc:
+                raise McpServerAlreadyExistsError(
+                    f"mcp server '{server_id}' already exists"
+                ) from exc
+            except asyncpg.PostgresError as exc:
+                logger.error(
+                    "Postgres error on create: %s | sqlstate=%s | detail=%s",
+                    str(exc),
+                    getattr(exc, "sqlstate", None),
+                    getattr(exc, "detail", None),
                 )
-        except asyncpg.UniqueViolationError as exc:
-            raise McpServerAlreadyExistsError(
-                f"mcp server '{server_id}' already exists"
-            ) from exc
-        except asyncpg.PostgresError as exc:
-            raise RepositoryError("failed to create mcp server") from exc
+                raise RepositoryError(f"failed to createmcp_server_registry {str(exc)}") from exc
 
-        return self._to_domain(row)
+            return self._to_domain(row)
 
     async def get_by_id(self, server_id: str) -> Service | None:
         try:
@@ -67,7 +97,7 @@ class PostgresMcpServerRepository(McpServerRepository):
                     """
                     SELECT
                         server_id,
-                        endpoint_url,
+                        endpoint,
                         status,
                         document,
                         discovered_at,
@@ -102,7 +132,7 @@ class PostgresMcpServerRepository(McpServerRepository):
                         """
                         SELECT
                             server_id,
-                            endpoint_url,
+                            endpoint,
                             status,
                             document,
                             discovered_at,
@@ -122,7 +152,7 @@ class PostgresMcpServerRepository(McpServerRepository):
                         """
                         SELECT
                             server_id,
-                            endpoint_url,
+                            endpoint,
                             status,
                             document,
                             discovered_at,
@@ -146,24 +176,26 @@ class PostgresMcpServerRepository(McpServerRepository):
 
     async def update(self, service: Service) -> Service:
         server_id = self._resolve_server_id(service)
-        endpoint_url = self._resolve_endpoint_url(service)
-
+        endpoint = self._resolve_endpoint(service)
+        status_value = service.status.value if hasattr(service.status, "value") else service.status
+        document = self._service_to_document(service)
+        document_json = json.dumps(document)
         try:
             async with self._pool.acquire() as connection:
                 row = await connection.fetchrow(
                     """
                     UPDATE mcp_server_registry
                     SET
-                        endpoint_url = $2,
+                        endpoint = $2,
                         status = $3,
-                        document = $4,
-                        discovered_at = $5,
-                        content_hash = $6,
-                        updated_at = NOW()
+                        document = $4::jsonb,
+                        discovered_at = NOW(),
+                        content_hash = $5,
+                        created_at = NOW()
                     WHERE server_id = $1
                     RETURNING
                         server_id,
-                        endpoint_url,
+                        endpoint,
                         status,
                         document,
                         discovered_at,
@@ -172,11 +204,10 @@ class PostgresMcpServerRepository(McpServerRepository):
                         updated_at
                     """,
                     server_id,
-                    endpoint_url,
-                    service.status,
-                    service.document,
-                    service.discovered_at,
-                    service.content_hash,
+                    endpoint,
+                    status_value,
+                    document_json,
+                    None,
                 )
         except asyncpg.PostgresError as exc:
             raise RepositoryError("failed to update mcp server") from exc
@@ -202,26 +233,21 @@ class PostgresMcpServerRepository(McpServerRepository):
         return result == "DELETE 1"
 
     @staticmethod
-    def _resolve_server_id(service: McpServer) -> str:
+    def _resolve_server_id(service: Service) -> str:
         if service.server_id:
             return service.server_id
-        value = service.document.get("serverId")
-        if isinstance(value, str) and value:
-            return value
         raise RepositoryError("service.server_id is required")
 
     @staticmethod
-    def _resolve_endpoint_url(service: McpServer) -> str:
-        if service.endpoint_url:
-            return service.endpoint_url
+    def _resolve_endpoint(service: Service) -> str:
+        if service.endpoint:
+            return service.endpoint.url
 
-        endpoint = service.document.get("endpoint")
-        if isinstance(endpoint, dict):
-            value = endpoint.get("url")
-            if isinstance(value, str) and value:
-                return value
+        raise RepositoryError("service.endpoint is required")
 
-        raise RepositoryError("service.endpoint_url is required")
+    @staticmethod
+    def _service_to_document(service: Service) -> dict:
+        return service.model_dump(mode="json", exclude_none=True)
 
     @staticmethod
     def _to_domain(row: asyncpg.Record) -> Service:
@@ -236,13 +262,23 @@ class PostgresMcpServerRepository(McpServerRepository):
         if discovered_at is not None and discovered_at.tzinfo is None:
             discovered_at = discovered_at.replace(tzinfo=timezone.utc)
 
-        return Service(
-            server_id=row["server_id"],
-            endpoint_url=row["endpoint_url"],
-            status=row["status"],
-            document=dict(row["document"]),
-            discovered_at=discovered_at,
-            content_hash=row["content_hash"],
-            created_at=created_at,
-            updated_at=updated_at,
-        )
+        raw_document = row["document"]
+        if isinstance(raw_document, str):
+            document = json.loads(raw_document)
+        elif isinstance(raw_document, dict):
+            document = raw_document
+        else:
+            document = {}
+
+        if "server_id" not in document:
+            document["server_id"] = row["server_id"]
+        if "status" not in document:
+            document["status"] = row["status"]
+        if "created_at" not in document and created_at is not None:
+            document["created_at"] = created_at.isoformat()
+        if "updated_at" not in document and updated_at is not None:
+            document["updated_at"] = updated_at.isoformat()
+        if "endpoint" not in document:
+            document["endpoint"] = {"url": row["endpoint"], "transport": "streamable-http"}
+
+        return Service(**document)

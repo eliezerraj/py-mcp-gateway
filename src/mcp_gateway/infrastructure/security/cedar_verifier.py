@@ -11,8 +11,6 @@ from mcp_gateway.domain.exceptions import (
 )
 
 from mcp_gateway.domain.model.context import (
-    SecurityContext,
-    VerifiedIdentity,
     get_security_context,
 )
 

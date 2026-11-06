@@ -32,7 +32,7 @@ class ServiceDiscoveryRequest:
 @dataclass(frozen=True)
 class ServiceRequest:
     server_id: str
-    display_name: str
+    name: str
     description: str
     endpoint: Optional[ServiceEndpointRequest]
     authentication: Optional[ServiceAuthenticationRequest]

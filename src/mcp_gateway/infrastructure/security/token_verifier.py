@@ -3,7 +3,6 @@ import asyncio
 import jwt
 
 from typing import Any
-from datetime import datetime
 from jwt import PyJWKClient
 
 from opentelemetry import trace
